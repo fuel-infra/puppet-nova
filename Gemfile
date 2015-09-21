@@ -14,6 +14,8 @@ group :development, :test do
   gem 'puppet-lint-numericvariable',          :require => 'false'
   gem 'json',                                 :require => 'false'
   gem 'webmock',                              :require => 'false'
+  gem 'openstack',                            :require => 'false'
+  gem 'netaddr',                              :require => 'false'
 end
 
 group :system_tests do
