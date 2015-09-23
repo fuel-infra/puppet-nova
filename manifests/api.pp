@@ -386,4 +386,11 @@ class nova::api(
     $validation_options_hash = merge ($defaults, $validation_options)
     create_resources('openstacklib::service_validation', $validation_options_hash, {'subscribe' => 'Service[nova-api]'})
   }
+
+  ensure_packages('python-openstackclient',
+    {
+      ensure => $ensure_package,
+      tag    => 'openstack'
+    }
+  )
 }

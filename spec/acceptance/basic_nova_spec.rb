@@ -129,6 +129,13 @@ describe 'basic nova' do
       }
       class { '::nova::scheduler': }
       class { '::nova::vncproxy': }
+
+      nova_aggregate { 'test_aggregate':
+        ensure            => present,
+        availability_zone => 'zone1',
+        metadata          => 'test=property',
+      }
+      Class['nova::api'] -> Nova_Aggregate<||>
       # TODO: networking with neutron
       EOS
 
@@ -158,5 +165,13 @@ describe 'basic nova' do
       it { is_expected.to have_entry('1 0 * * * nova-manage db archive_deleted_rows --max_rows 100 >>/var/log/nova/nova-rowsflush.log 2>&1').with_user('nova') }
     end
 
+    describe 'nova aggregate' do
+      it 'should create new aggregate' do
+        shell('openstack --os-username nova --os-password a_big_secret --os-tenant-name services --os-auth-url http://127.0.0.1:5000/v2.0 aggregate list') do |r|
+          expect(r.stdout).to match(/test_aggregate/)
+          expect(r.stderr).to be_empty
+        end
+      end
+    end
   end
 end

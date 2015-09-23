@@ -18,6 +18,14 @@ describe 'nova::api' do
 
     context 'with default parameters' do
 
+      it 'should contain openstack client package' do
+        is_expected.to contain_package('python-openstackclient').with(
+          :name   => 'python-openstackclient',
+          :ensure => 'present',
+          :tag    => 'openstack',
+        )
+      end
+
       it 'installs nova-api package and service' do
         is_expected.to contain_service('nova-api').with(
           :name      => platform_params[:nova_api_service],
