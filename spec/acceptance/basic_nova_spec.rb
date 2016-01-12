@@ -6,59 +6,11 @@ describe 'basic nova' do
 
     it 'should work with no errors' do
       pp= <<-EOS
-      Exec { logoutput => 'on_failure' }
-
-      # Common resources
-      case $::osfamily {
-        'Debian': {
-          include ::apt
-          class { '::openstack_extras::repo::debian::ubuntu':
-            release         => 'liberty',
-            repo            => 'proposed',
-            package_require => true,
-          }
-          $package_provider = 'apt'
-        }
-        'RedHat': {
-          class { '::openstack_extras::repo::redhat::redhat':
-            manage_rdo => false,
-            repo_hash => {
-              'openstack-common-testing' => {
-                'baseurl'  => 'http://cbs.centos.org/repos/cloud7-openstack-common-testing/x86_64/os/',
-                'descr'    => 'openstack-common-testing',
-                'gpgcheck' => 'no',
-              },
-              'openstack-liberty-testing' => {
-                'baseurl'  => 'http://cbs.centos.org/repos/cloud7-openstack-liberty-testing/x86_64/os/',
-                'descr'    => 'openstack-liberty-testing',
-                'gpgcheck' => 'no',
-              },
-              'openstack-liberty-trunk' => {
-                'baseurl'  => 'http://trunk.rdoproject.org/centos7-liberty/current-passed-ci/',
-                'descr'    => 'openstack-liberty-trunk',
-                'gpgcheck' => 'no',
-              },
-            },
-          }
-          package { 'openstack-selinux': ensure => 'latest' }
-          $package_provider = 'yum'
-        }
-        default: {
-          fail("Unsupported osfamily (${::osfamily})")
-        }
-      }
-
-      class { '::mysql::server': }
-
-      class { '::rabbitmq':
-        delete_guest_user => true,
-        package_provider  => $package_provider,
-      }
-
-      rabbitmq_vhost { '/':
-        provider => 'rabbitmqctl',
-        require  => Class['rabbitmq'],
-      }
+      include ::openstack_integration
+      include ::openstack_integration::repos
+      include ::openstack_integration::rabbitmq
+      include ::openstack_integration::mysql
+      include ::openstack_integration::keystone
 
       rabbitmq_user { 'nova':
         admin    => true,
@@ -75,29 +27,9 @@ describe 'basic nova' do
         require              => Class['rabbitmq'],
       }
 
-      # Keystone resources, needed by Nova to run
-      class { '::keystone::db::mysql':
-        password => 'keystone',
-      }
-      class { '::keystone':
-        verbose             => true,
-        debug               => true,
-        database_connection => 'mysql://keystone:keystone@127.0.0.1/keystone',
-        admin_token         => 'admin_token',
-        enabled             => true,
-      }
-      class { '::keystone::roles::admin':
-        email    => 'test@example.tld',
-        password => 'a_big_secret',
-      }
-      class { '::keystone::endpoint':
-        public_url => "https://${::fqdn}:5000/",
-        admin_url  => "https://${::fqdn}:35357/",
-      }
-
       # Nova resources
       class { '::nova':
-        database_connection => 'mysql://nova:a_big_secret@127.0.0.1/nova?charset=utf8',
+        database_connection => 'mysql+pymysql://nova:a_big_secret@127.0.0.1/nova?charset=utf8',
         rabbit_userid       => 'nova',
         rabbit_password     => 'an_even_bigger_secret',
         image_service       => 'nova.image.glance.GlanceImageService',
@@ -134,8 +66,9 @@ describe 'basic nova' do
         ensure            => present,
         availability_zone => 'zone1',
         metadata          => 'test=property',
+        require           => Class['nova::api'],
       }
-      Class['nova::api'] -> Nova_Aggregate<||>
+
       # TODO: networking with neutron
       EOS
 
@@ -143,10 +76,6 @@ describe 'basic nova' do
       # Run it twice and test for idempotency
       apply_manifest(pp, :catch_failures => true)
       apply_manifest(pp, :catch_changes => true)
-    end
-
-    describe port(8773) do
-      it { is_expected.to be_listening.with('tcp') }
     end
 
     describe port(8774) do

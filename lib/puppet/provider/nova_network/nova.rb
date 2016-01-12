@@ -6,13 +6,6 @@ Puppet::Type.type(:nova_network).provide(:nova, :parent => Puppet::Provider::Nov
 
   optional_commands :nova => 'nova'
 
-  def network_exists?
-    instances = auth_nova('network-list')
-    return instances.split("\n")[1..-1].detect do |n|
-        n =~ /^(\S+)\s+(#{resource[:label]})/
-    end
-  end
-
   def create
     optional_opts = []
     {
@@ -37,11 +30,14 @@ Puppet::Type.type(:nova_network).provide(:nova, :parent => Puppet::Provider::Nov
   end
 
   def exists?
-    network_exists?
+    instances = auth_nova('network-list')
+    return instances.split('\n')[1..-1].detect do |n|
+        n =~ /(\S+)\s+(#{resource[:network]})\s+(\S+)/
+    end
   end
 
   def destroy
-    auth_nova("network-delete", resource[:label])
+    auth_nova("network-delete", resource[:network])
   end
 
 end

@@ -11,6 +11,10 @@
 #   (optional) Whether the nova api service will be run
 #   Defaults to true
 #
+# [*api_paste_config*]
+#   (optional) File name for the paste.deploy config for nova-api
+#   Defaults to 'api-paste.ini'
+#
 # [*manage_service*]
 #   (optional) Whether to start/stop the service
 #   Defaults to true
@@ -19,32 +23,16 @@
 #   (optional) Whether the nova api package will be installed
 #   Defaults to 'present'
 #
-# [*auth_host*]
-#   (optional) DEPRECATED. The IP of the server running keystone
-#   Defaults to '127.0.0.1'
-#
-# [*auth_port*]
-#   (optional) DEPRECATED. The port to use when authenticating against Keystone
-#   Defaults to 35357
-#
-# [*auth_protocol*]
-#   (optional) DEPRECATED. The protocol to use when authenticating against Keystone
-#   Defaults to 'http'
-#
 # [*auth_uri*]
 #   (optional) Complete public Identity API endpoint.
-#   Defaults to false
+#   Defaults to 'http://127.0.0.1:5000/'
 #
 # [*identity_uri*]
 #   (optional) Complete admin Identity API endpoint.
-#   Defaults to: false
-#
-# [*auth_admin_prefix*]
-#   (optional) DEPRECATED. Prefix to prepend at the beginning of the keystone path
-#   Defaults to false
+#   Defaults to: 'http://127.0.0.1:35357/'
 #
 # [*auth_version*]
-#   (optional) API version of the admin Identity API endpoint
+#   (optional) DEPRECATED. API version of the admin Identity API endpoint
 #   for example, use 'v3.0' for the keystone version 3.0 api
 #   Defaults to false
 #
@@ -61,8 +49,8 @@
 #   Defaults to '0.0.0.0'
 #
 # [*ec2_listen_port*]
-#   (optional) The port on which the EC2 API will listen.
-#   Defaults to port 8773
+#   (optional) DEPRECATED. The port on which the EC2 API will listen.
+#   Defaults to port undef
 #
 # [*metadata_listen*]
 #   (optional) IP address  for metadata server to listen
@@ -74,21 +62,15 @@
 #
 # [*enabled_apis*]
 #   (optional) A comma separated list of apis to enable
-#   Defaults to 'ec2,osapi_compute,metadata'
+#   Defaults to 'osapi_compute,metadata'
 #
 # [*keystone_ec2_url*]
-#   (optional) The keystone url where nova should send requests for ec2tokens
-#   Defaults to false
+#   (optional) DEPRECATED. The keystone url where nova should send requests for ec2tokens
+#   Defaults to undef
 #
 # [*volume_api_class*]
 #   (optional) The name of the class that nova will use to access volumes. Cinder is the only option.
 #   Defaults to 'nova.volume.cinder.API'
-#
-# [*cinder_catalog_info*]
-#   (optional) Info to match when looking for cinder in the service
-#   catalog. Format is: separated values of the form:
-#   <service_type>:<service_name>:<endpoint_type>
-#   Defaults to 'volumev2:cinderv2:publicURL'
 #
 # [*use_forwarded_for*]
 #   (optional) Treat X-Forwarded-For as the canonical remote address. Only
@@ -104,8 +86,8 @@
 #   Defaults to port 8774
 #
 # [*ec2_workers*]
-#   (optional) Number of workers for EC2 service
-#   Defaults to $::processorcount
+#   (optional) DEPRECATED. Number of workers for EC2 service
+#   Defaults to undef
 #
 # [*metadata_workers*]
 #   (optional) Number of workers for metadata service
@@ -114,6 +96,10 @@
 # [*conductor_workers*]
 #   (optional) DEPRECATED. Use workers parameter of nova::conductor
 #   Class instead.
+#   Defaults to undef
+#
+# [*instance_name_template*]
+#   (optional) Template string to be used to generate instance names
 #   Defaults to undef
 #
 # [*sync_db*]
@@ -152,6 +138,10 @@
 #   (optional) Whether to validate the service is working after any service refreshes
 #   Defaults to false
 #
+# [*fping_path*]
+#   (optional) Full path to fping.
+#   Defaults to '/usr/sbin/fping'
+#
 # [*validation_options*]
 #   (optional) Service validation options
 #   Should be a hash of options defined in openstacklib::service_validation
@@ -172,24 +162,20 @@ class nova::api(
   $admin_password,
   $enabled                   = true,
   $manage_service            = true,
+  $api_paste_config          = 'api-paste.ini',
   $ensure_package            = 'present',
-  $auth_uri                  = false,
-  $identity_uri              = false,
-  $auth_version              = false,
+  $auth_uri                  = 'http://127.0.0.1:5000/',
+  $identity_uri              = 'http://127.0.0.1:35357/',
   $admin_tenant_name         = 'services',
   $admin_user                = 'nova',
   $api_bind_address          = '0.0.0.0',
-  $ec2_listen_port           = 8773,
   $osapi_compute_listen_port = 8774,
   $metadata_listen           = '0.0.0.0',
   $metadata_listen_port      = 8775,
-  $enabled_apis              = 'ec2,osapi_compute,metadata',
-  $keystone_ec2_url          = false,
+  $enabled_apis              = 'osapi_compute,metadata',
   $volume_api_class          = 'nova.volume.cinder.API',
-  $cinder_catalog_info       = 'volumev2:cinderv2:publicURL',
   $use_forwarded_for         = false,
   $osapi_compute_workers     = $::processorcount,
-  $ec2_workers               = $::processorcount,
   $metadata_workers          = $::processorcount,
   $sync_db                   = true,
   $neutron_metadata_proxy_shared_secret = undef,
@@ -201,30 +187,39 @@ class nova::api(
     'nova.api.openstack.compute.limits:RateLimitingMiddleware.factory',
   $validate                  = false,
   $validation_options        = {},
+  $instance_name_template    = undef,
+  $fping_path                = '/usr/sbin/fping',
   # DEPRECATED PARAMETER
-  $auth_protocol             = 'http',
-  $auth_port                 = 35357,
-  $auth_host                 = '127.0.0.1',
-  $auth_admin_prefix         = false,
   $conductor_workers         = undef,
+  $ec2_listen_port           = undef,
+  $ec2_workers               = undef,
+  $keystone_ec2_url          = undef,
+  $auth_version              = false,
 ) {
 
+  include ::nova::deps
   include ::nova::db
   include ::nova::params
   include ::nova::policy
   require ::keystone::python
   include ::cinder::client
 
-  Package<| title == 'nova-common' |> -> Class['nova::api']
-  Package<| title == 'nova-common' |> -> Class['nova::policy']
-
-  Nova_paste_api_ini<| |> ~> Exec['post-nova_config']
-
-  Nova_paste_api_ini<| |> ~> Service['nova-api']
-  Class['nova::policy'] ~> Service['nova-api']
+  if $ec2_listen_port or $ec2_workers or $keystone_ec2_url {
+    warning('ec2_listen_port, ec2_workers and keystone_ec2_url are deprecated and have no effect. Deploy openstack/ec2-api instead.')
+  }
 
   if $conductor_workers {
     warning('The conductor_workers parameter is deprecated and has no effect. Use workers parameter of nova::conductor class instead.')
+  }
+
+  if $instance_name_template {
+    nova_config {
+      'DEFAULT/instance_name_template': value => $instance_name_template;
+    }
+  } else {
+    nova_config{
+      'DEFAULT/instance_name_template': ensure => absent;
+    }
   }
 
   nova::generic_service { 'api':
@@ -238,21 +233,19 @@ class nova::api(
 
   nova_config {
     'DEFAULT/enabled_apis':              value => $enabled_apis;
+    'DEFAULT/api_paste_config':          value => $api_paste_config;
     'DEFAULT/volume_api_class':          value => $volume_api_class;
-    'DEFAULT/ec2_listen':                value => $api_bind_address;
-    'DEFAULT/ec2_listen_port':           value => $ec2_listen_port;
     'DEFAULT/osapi_compute_listen':      value => $api_bind_address;
     'DEFAULT/metadata_listen':           value => $metadata_listen;
     'DEFAULT/metadata_listen_port':      value => $metadata_listen_port;
     'DEFAULT/osapi_compute_listen_port': value => $osapi_compute_listen_port;
     'DEFAULT/osapi_volume_listen':       value => $api_bind_address;
     'DEFAULT/osapi_compute_workers':     value => $osapi_compute_workers;
-    'DEFAULT/ec2_workers':               value => $ec2_workers;
     'DEFAULT/metadata_workers':          value => $metadata_workers;
     'DEFAULT/use_forwarded_for':         value => $use_forwarded_for;
     'DEFAULT/default_floating_pool':     value => $default_floating_pool;
+    'DEFAULT/fping_path':                value => $fping_path;
     'osapi_v3/enabled':                  value => $osapi_v3;
-    'cinder/catalog_info':               value => $cinder_catalog_info;
   }
 
   if ($neutron_metadata_proxy_shared_secret){
@@ -268,82 +261,19 @@ class nova::api(
     }
   }
 
-  if $auth_uri {
-    $auth_uri_real = $auth_uri
-  } else {
-    $auth_uri_real = "${auth_protocol}://${auth_host}:5000/"
-  }
-  nova_config { 'keystone_authtoken/auth_uri': value => $auth_uri_real; }
-
-  if $identity_uri {
-    nova_config { 'keystone_authtoken/identity_uri': value => $identity_uri; }
-  } else {
-    nova_config { 'keystone_authtoken/identity_uri': ensure => absent; }
-  }
-
   if $auth_version {
-    nova_config { 'keystone_authtoken/auth_version': value => $auth_version; }
-  } else {
-    nova_config { 'keystone_authtoken/auth_version': ensure => absent; }
+    warning('auth_version parameter is deprecated and has no effect during Mitaka and will be dropped during N cycle.')
   }
 
-  # if both auth_uri and identity_uri are set we skip these deprecated settings entirely
-  if !$auth_uri or !$identity_uri {
-
-    if $auth_host {
-      warning('The auth_host parameter is deprecated. Please use auth_uri and identity_uri instead.')
-      nova_config { 'keystone_authtoken/auth_host': value => $auth_host; }
-    } else {
-      nova_config { 'keystone_authtoken/auth_host': ensure => absent; }
-    }
-
-    if $auth_port {
-      warning('The auth_port parameter is deprecated. Please use auth_uri and identity_uri instead.')
-      nova_config { 'keystone_authtoken/auth_port': value => $auth_port; }
-    } else {
-      nova_config { 'keystone_authtoken/auth_port': ensure => absent; }
-    }
-
-    if $auth_protocol {
-      warning('The auth_protocol parameter is deprecated. Please use auth_uri and identity_uri instead.')
-      nova_config { 'keystone_authtoken/auth_protocol': value => $auth_protocol; }
-    } else {
-      nova_config { 'keystone_authtoken/auth_protocol': ensure => absent; }
-    }
-
-    if $auth_admin_prefix {
-      warning('The auth_admin_prefix  parameter is deprecated. Please use auth_uri and identity_uri instead.')
-      validate_re($auth_admin_prefix, '^(/.+[^/])?$')
-      nova_config {
-        'keystone_authtoken/auth_admin_prefix': value => $auth_admin_prefix;
-      }
-    } else {
-      nova_config { 'keystone_authtoken/auth_admin_prefix': ensure => absent; }
-    }
-
-  } else {
-    nova_config {
-      'keystone_authtoken/auth_host': ensure => absent;
-      'keystone_authtoken/auth_port': ensure => absent;
-      'keystone_authtoken/auth_protocol': ensure => absent;
-      'keystone_authtoken/auth_admin_prefix': ensure => absent;
-    }
+  nova_config {
+    'keystone_authtoken/auth_uri'    : value => $auth_uri;
+    'keystone_authtoken/identity_uri': value => $identity_uri;
   }
 
   nova_config {
     'keystone_authtoken/admin_tenant_name': value => $admin_tenant_name;
     'keystone_authtoken/admin_user':        value => $admin_user;
     'keystone_authtoken/admin_password':    value => $admin_password, secret => true;
-  }
-
-  if $keystone_ec2_url {
-    nova_config {
-      'DEFAULT/keystone_ec2_url': value => $keystone_ec2_url;
-    }
-  } else {
-    nova_config {
-      'DEFAULT/keystone_ec2_url': ensure => absent;
-    }
   }
 
   if ($ratelimits != undef) {
@@ -380,17 +310,10 @@ class nova::api(
   if $validate {
     $defaults = {
       'nova-api' => {
-        'command'  => "nova --os-auth-url ${auth_uri_real} --os-tenant-name ${admin_tenant_name} --os-username ${admin_user} --os-password ${admin_password} flavor-list",
+        'command'  => "nova --os-auth-url ${auth_uri} --os-tenant-name ${admin_tenant_name} --os-username ${admin_user} --os-password ${admin_password} flavor-list",
       }
     }
     $validation_options_hash = merge ($defaults, $validation_options)
     create_resources('openstacklib::service_validation', $validation_options_hash, {'subscribe' => 'Service[nova-api]'})
   }
-
-  ensure_packages('python-openstackclient',
-    {
-      ensure => $ensure_package,
-      tag    => 'openstack'
-    }
-  )
 }

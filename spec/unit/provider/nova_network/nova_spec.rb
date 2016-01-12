@@ -9,7 +9,7 @@ describe provider_class do
   let :net_attrs do
     {
       :network => '10.20.0.0/16',
-      :label   => 'nova-network',
+      :label   => 'novanetwork',
       :ensure  => 'present',
     }
   end
@@ -25,31 +25,24 @@ describe provider_class do
   shared_examples 'nova_network' do
     describe '#exists?' do
       it 'should check non-existsing network' do
-        provider.class.stubs(:network_exists?).returns(false)
         provider.expects(:auth_nova).with("network-list")
                       .returns('"+--------------------------------------+-------------+-------------+\n| ID                                   | Label       | Cidr        |\n+--------------------------------------+-------------+-------------+\n| 703edc62-36ab-4c41-9d73-884b30e9acbd | novanetwork | 10.0.0.0/16 |\n+--------------------------------------+-------------+-------------+\n"
-
 ')
-        provider.exists?
+        expect(provider.exists?).to be_falsey
       end
 
       it 'should check existsing network' do
-        resource[:network] = '10.0.0.0/16'
-        resource[:label] = 'novanetwork'
-        provider.class.stubs(:network_exists?).returns(true)
         provider.expects(:auth_nova).with("network-list")
-                      .returns('"+--------------------------------------+-------------+-------------+\n| ID                                   | Label       | Cidr        |\n+--------------------------------------+-------------+-------------+\n| 703edc62-36ab-4c41-9d73-884b30e9acbd | novanetwork | 10.0.0.0/16 |\n+--------------------------------------+-------------+-------------+\n"
-
+                      .returns('"+--------------------------------------+-------------+-------------+\n| ID                                   | Label       | Cidr        |\n+--------------------------------------+-------------+-------------+\n| 703edc62-36ab-4c41-9d73-884b30e9acbd | novanetwork | 10.20.0.0/16 |\n+--------------------------------------+-------------+-------------+\n"
 ')
-        provider.exists?
+        expect(provider.exists?).to be_truthy
       end
     end
 
     describe '#create' do
       it 'should create network' do
-        provider.expects(:auth_nova).with("network-create", ['nova-network', '--fixed-range-v4', '10.20.0.0/16'] )
+        provider.expects(:auth_nova).with("network-create", ['novanetwork', '--fixed-range-v4', '10.20.0.0/16'] )
                       .returns('"+--------------------------------------+-------------+-------------+\n| ID                                   | Label       | Cidr        |\n+--------------------------------------+-------------+-------------+\n| 703edc62-36ab-4c41-9d73-88sdfsdfsdfsd | nova-network | 10.20.0.0/16 |\n+--------------------------------------+-------------+-------------+\n"
-
 ')
         provider.create
       end
@@ -58,7 +51,7 @@ describe provider_class do
     describe '#destroy' do
       it 'should destroy network' do
         resource[:ensure] = :absent
-        provider.expects(:auth_nova).with("network-delete", "nova-network")
+        provider.expects(:auth_nova).with("network-delete", "10.20.0.0/16")
                       .returns('"+--------------------------------------+-------------+-------------+\n| ID                                   | Label       | Cidr        |\n+--------------------------------------+-------------+-------------+\n
 ')
         provider.destroy

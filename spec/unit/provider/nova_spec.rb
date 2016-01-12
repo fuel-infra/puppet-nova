@@ -13,9 +13,7 @@ describe Puppet::Provider::Nova do
 
   let :credential_hash do
     {
-      'auth_host'         => '192.168.56.210',
-      'auth_port'         => '35357',
-      'auth_protocol'     => 'https',
+      'auth_uri'     => 'https://192.168.56.210:35357/v2.0/',
       'admin_tenant_name' => 'admin_tenant',
       'admin_user'        => 'admin',
       'admin_password'    => 'password',
@@ -60,7 +58,7 @@ describe Puppet::Provider::Nova do
       end.to raise_error(Puppet::Error, credential_error)
     end
 
-    it 'should use specified host/port/protocol in the auth endpoint' do
+    it 'should use specified uri in the auth endpoint' do
       conf = {'keystone_authtoken' => credential_hash}
       klass.expects(:nova_conf).returns(conf)
       expect(klass.get_auth_endpoint).to eq(auth_endpoint)
@@ -100,9 +98,11 @@ describe Puppet::Provider::Nova do
       s = "[]"
       expect(klass.str2list(s)).to eq([])
     end
+
     it 'should return list with value' do
       s = "[u'node-28.domain.tld', u'node-8.domain.tld']"
       expect(klass.str2list(s)).to eq(["node-28.domain.tld", "node-8.domain.tld"])
     end
   end
+
 end

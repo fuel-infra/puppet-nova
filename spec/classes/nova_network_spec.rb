@@ -20,7 +20,7 @@ describe 'nova::network' do
   describe 'on debian platforms' do
 
     let :facts do
-      { :osfamily => 'Debian' }
+      @default_facts.merge({ :osfamily => 'Debian' })
     end
 
     it { is_expected.to contain_sysctl__value('net.ipv4.ip_forward').with_value('1') }
@@ -30,7 +30,7 @@ describe 'nova::network' do
       it { is_expected.to contain_package('nova-network').with(
         'name'   => 'nova-network',
         'ensure' => 'present',
-        'notify' => 'Service[nova-network]'
+        'notify' => ['Anchor[nova::install::end]'],
       ) }
 
       describe 'with enabled as true' do
@@ -91,6 +91,8 @@ describe 'nova::network' do
           default_params.merge(:floating_range => '10.0.0.0/30')
         end
         it { is_expected.to contain_nova_config('DEFAULT/floating_range').with_value('10.0.0.0/30') }
+        it { is_expected.to contain_nova_config('DEFAULT/auto_assign_floating_ip').with_value('false') }
+        it { is_expected.to contain_nova_config('DEFAULT/multi_host').with_value('false') }
         it { is_expected.to contain_nova__manage__floating('nova-vm-floating').with_network('10.0.0.0/30') }
       end
     end
@@ -231,7 +233,7 @@ describe 'nova::network' do
   end
   describe 'on rhel' do
     let :facts do
-      { :osfamily => 'RedHat' }
+      @default_facts.merge({ :osfamily => 'RedHat' })
     end
     it { is_expected.to contain_service('nova-network').with(
       'name'      => 'openstack-nova-network',

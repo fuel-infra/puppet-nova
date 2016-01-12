@@ -30,10 +30,12 @@ class nova::policy (
 
   validate_hash($policies)
 
-  Openstacklib::Policy::Base {
-    file_path => $policy_path,
+  $policy_defaults = {
+    'file_path' => $policy_path,
+    'require'   => Anchor['nova::config::begin'],
+    'notify'    => Anchor['nova::config::end'],
   }
 
-  create_resources('openstacklib::policy::base', $policies)
+  create_resources('openstacklib::policy::base', $policies, $policy_defaults)
 
 }

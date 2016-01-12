@@ -31,13 +31,6 @@
 #   (optional) Additional hosts that are allowed to access this DB
 #   Defaults to undef
 #
-# [*cluster_id*]
-#   (optional) Deprecated. Does nothing
-#   Defaults to 'localzone'
-#
-# [*mysql_module*]
-#   (optional) Deprecated. Does nothing.
-#
 class nova::db::mysql(
   $password,
   $dbname        = 'nova',
@@ -46,12 +39,9 @@ class nova::db::mysql(
   $charset       = 'utf8',
   $collate       = 'utf8_general_ci',
   $allowed_hosts = undef,
-  $mysql_module  = undef,
 ) {
 
-  if $mysql_module {
-    warning('The mysql_module parameter is deprecated. The latest 2.x mysql module will be used.')
-  }
+  include ::nova::deps
 
   ::openstacklib::db::mysql { 'nova':
     user          => $user,
@@ -63,5 +53,7 @@ class nova::db::mysql(
     allowed_hosts => $allowed_hosts,
   }
 
-  ::Openstacklib::Db::Mysql['nova'] ~> Exec<| title == 'nova-db-sync' |>
+  Anchor['nova::db::begin']
+  ~> Class['nova::db::mysql']
+  ~> Anchor['nova::db::end']
 }

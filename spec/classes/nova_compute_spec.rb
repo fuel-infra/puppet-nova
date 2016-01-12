@@ -25,11 +25,12 @@ describe 'nova::compute' do
       end
 
       it { is_expected.to contain_nova_config('DEFAULT/network_device_mtu').with(:ensure => 'absent') }
+      it { is_expected.to contain_nova_config('DEFAULT/allow_resize_to_same_host').with(:value => 'false') }
       it { is_expected.to_not contain_nova_config('DEFAULT/novncproxy_base_url') }
+
 
       it { is_expected.to_not contain_package('bridge-utils').with(
         :ensure => 'present',
-        :before => 'Nova::Generic_service[compute]'
       ) }
 
       it { is_expected.to contain_package('pm-utils').with(
@@ -91,6 +92,7 @@ describe 'nova::compute' do
       it 'configures vnc in nova.conf' do
         is_expected.to contain_nova_config('DEFAULT/vnc_enabled').with_value(true)
         is_expected.to contain_nova_config('DEFAULT/vncserver_proxyclient_address').with_value('127.0.0.1')
+        is_expected.to contain_nova_config('DEFAULT/vnc_keymap').with_value('en-us')
         is_expected.to contain_nova_config('DEFAULT/novncproxy_base_url').with_value(
           'http://127.0.0.1:6080/vnc_auto.html'
         )
@@ -124,8 +126,9 @@ describe 'nova::compute' do
       it 'installs bridge-utils package for nova-network' do
         is_expected.to contain_package('bridge-utils').with(
           :ensure => 'present',
-          :before => 'Nova::Generic_service[compute]'
         )
+        is_expected.to contain_package('bridge-utils').that_requires('Anchor[nova::install::begin]')
+        is_expected.to contain_package('bridge-utils').that_comes_before('Anchor[nova::install::end]')
       end
 
     end
@@ -138,7 +141,6 @@ describe 'nova::compute' do
       it 'does not install bridge-utils package for nova-network' do
         is_expected.to_not contain_package('bridge-utils').with(
           :ensure => 'present',
-          :before => 'Nova::Generic_service[compute]'
         )
       end
 
@@ -151,7 +153,8 @@ describe 'nova::compute' do
 
       it 'disables vnc in nova.conf' do
         is_expected.to contain_nova_config('DEFAULT/vnc_enabled').with_value(false)
-        is_expected.to contain_nova_config('DEFAULT/vncserver_proxyclient_address').with_value('127.0.0.1')
+        is_expected.to contain_nova_config('DEFAULT/vncserver_proxyclient_address').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/vnc_keymap').with_ensure('absent')
         is_expected.to_not contain_nova_config('DEFAULT/novncproxy_base_url')
       end
     end
@@ -214,7 +217,7 @@ describe 'nova::compute' do
 
   context 'on Debian platforms' do
     let :facts do
-      { :osfamily => 'Debian' }
+      @default_facts.merge({ :osfamily => 'Debian' })
     end
 
     let :platform_params do
@@ -227,7 +230,7 @@ describe 'nova::compute' do
 
   context 'on RedHat platforms' do
     let :facts do
-      { :osfamily => 'RedHat' }
+      @default_facts.merge({ :osfamily => 'RedHat' })
     end
 
     let :platform_params do

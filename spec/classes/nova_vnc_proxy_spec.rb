@@ -9,15 +9,10 @@ describe 'nova::vncproxy' do
   end
 
     context 'with default parameters' do
-      before :each do
-        stub_request(:get, "http://169.254.169.254/").
-          with(:headers => {'Accept'=>'*/*', 'Accept-Encoding'=>'gzip;q=1.0,deflate;q=0.6,identity;q=0.3', 'User-Agent'=>'Ruby'}).
-          to_return(:status => 200, :body => "", :headers => {})
-      end
 
       describe 'on debian platforms' do
         let :facts do
-          { :osfamily => 'Debian' }
+          @default_facts.merge({ :osfamily => 'Debian' })
       end
 
       it { is_expected.to contain_package('python-numpy').with(
@@ -61,7 +56,11 @@ describe 'nova::vncproxy' do
 
   describe 'on debian OS' do
       let :facts do
-        { :osfamily => 'Debian', :operatingsystem => 'Debian' }
+        @default_facts.merge({
+          :osfamily        => 'Debian',
+          :operatingsystem => 'Debian',
+          :os_package_type => 'debian'
+        })
       end
       it { is_expected.to contain_package('nova-vncproxy').with(
         :name   => "nova-consoleproxy",
@@ -74,11 +73,29 @@ describe 'nova::vncproxy' do
       )}
   end
 
+  describe 'on Ubuntu OS with Debian packages' do
+      let :facts do
+        @default_facts.merge({
+          :osfamily        => 'Debian',
+          :operatingsystem => 'Ubuntu',
+          :os_package_type => 'debian'
+        })
+      end
+      it { is_expected.to contain_package('nova-vncproxy').with(
+        :name   => "nova-consoleproxy",
+        :ensure => 'present'
+      )}
+      it { is_expected.to contain_service('nova-vncproxy').with(
+        :name      => 'nova-novncproxy',
+        :hasstatus => true,
+        :ensure    => 'running'
+      )}
+  end
 
   describe 'on Redhatish platforms' do
 
     let :facts do
-      { :osfamily => 'Redhat' }
+      @default_facts.merge({ :osfamily => 'Redhat' })
     end
 
     it { is_expected.to contain_package('python-numpy').with(

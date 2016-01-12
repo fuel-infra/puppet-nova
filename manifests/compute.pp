@@ -115,6 +115,11 @@
 #    (optional) Config drive format. One of iso9660 (default) or vfat
 #    Defaults to undef
 #
+#  [*allow_resize_to_same_host*]
+#    (optional) Allow destination machine to match source for resize.
+#    Useful when testing in single-host environments.
+#    Defaults to false
+#
 class nova::compute (
   $enabled                            = true,
   $manage_service                     = true,
@@ -142,31 +147,42 @@ class nova::compute (
   $heal_instance_info_cache_interval  = '60',
   $pci_passthrough                    = undef,
   $config_drive_format                = undef,
+  $allow_resize_to_same_host          = false,
 ) {
 
+  include ::nova::deps
   include ::nova::params
 
   nova_config {
     'DEFAULT/reserved_host_memory_mb':           value => $reserved_host_memory;
     'DEFAULT/compute_manager':                   value => $compute_manager;
     'DEFAULT/heal_instance_info_cache_interval': value => $heal_instance_info_cache_interval;
+    'DEFAULT/allow_resize_to_same_host':         value => $allow_resize_to_same_host;
   }
 
   if ($vnc_enabled) {
     include ::nova::vncproxy::common
-  }
 
+    nova_config {
+      'DEFAULT/vncserver_proxyclient_address': value =>
+        $vncserver_proxyclient_address;
+      'DEFAULT/vnc_keymap':                    value => $vnc_keymap;
+    }
+  } else {
+    nova_config {
+      'DEFAULT/vncserver_proxyclient_address': ensure => absent;
+      'DEFAULT/vnc_keymap':                    ensure => absent;
+    }
+  }
   nova_config {
-    'DEFAULT/vnc_enabled':                   value => $vnc_enabled;
-    'DEFAULT/vncserver_proxyclient_address': value => $vncserver_proxyclient_address;
-    'DEFAULT/vnc_keymap':                    value => $vnc_keymap;
+    'DEFAULT/vnc_enabled': value => $vnc_enabled;
   }
 
   if $neutron_enabled != true and $install_bridge_utils {
     # Install bridge-utils if we use nova-network
     package { 'bridge-utils':
       ensure => present,
-      before => Nova::Generic_service['compute'],
+      tag    => ['openstack', 'nova-support-package'],
     }
   }
 
@@ -214,6 +230,7 @@ class nova::compute (
 
   package { 'pm-utils':
     ensure => present,
+    tag    => ['openstack', 'nova-support-package'],
   }
 
   nova_config {

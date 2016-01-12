@@ -6,34 +6,19 @@ describe 'nova' do
 
     context 'with default parameters' do
 
+     it 'contains the logging class' do
+       is_expected.to contain_class('nova::logging')
+     end
+
       it 'installs packages' do
-        is_expected.to contain_package('python-greenlet').with(
-          :ensure  => 'present',
-        )
         is_expected.to contain_package('python-nova').with(
-          :ensure  => 'present',
-          :require => 'Package[python-greenlet]',
-          :tag     => ['openstack']
+          :ensure => 'present',
+          :tag    => ['openstack', 'nova-package']
         )
         is_expected.to contain_package('nova-common').with(
           :name    => platform_params[:nova_common_package],
           :ensure  => 'present',
           :tag     => ['openstack', 'nova-package']
-        )
-      end
-
-      it 'creates various files and folders' do
-        is_expected.to contain_file('/var/log/nova').with(
-          :ensure  => 'directory',
-          :mode    => '0750',
-          :owner   => 'nova',
-          :require => 'Package[nova-common]'
-        )
-        is_expected.to contain_file('/etc/nova/nova.conf').with(
-          :mode    => '0640',
-          :owner   => 'nova',
-          :group   => 'nova',
-          :require => 'Package[nova-common]'
         )
       end
 
@@ -68,27 +53,22 @@ describe 'nova' do
       end
 
       it 'configures various things' do
-        is_expected.to contain_nova_config('DEFAULT/verbose').with_value(false)
-        is_expected.to contain_nova_config('DEFAULT/debug').with_value(false)
-        is_expected.to contain_nova_config('DEFAULT/use_stderr').with_value(true)
-        is_expected.to contain_nova_config('DEFAULT/log_dir').with_value('/var/log/nova')
         is_expected.to contain_nova_config('DEFAULT/state_path').with_value('/var/lib/nova')
         is_expected.to contain_nova_config('DEFAULT/lock_path').with_value(platform_params[:lock_path])
         is_expected.to contain_nova_config('DEFAULT/service_down_time').with_value('60')
         is_expected.to contain_nova_config('DEFAULT/notification_driver').with_ensure('absent')
         is_expected.to contain_nova_config('DEFAULT/rootwrap_config').with_value('/etc/nova/rootwrap.conf')
         is_expected.to contain_nova_config('DEFAULT/report_interval').with_value('10')
+        is_expected.to contain_nova_config('DEFAULT/use_ipv6').with_value('<SERVICE DEFAULT>')
         is_expected.to contain_nova_config('DEFAULT/os_region_name').with_ensure('absent')
         is_expected.to contain_nova_config('cinder/os_region_name').with_ensure('absent')
+        is_expected.to contain_nova_config('cinder/catalog_info').with('value' => 'volumev2:cinderv2:publicURL')
       end
 
-      it 'installs utilities' do
-        is_expected.to contain_class('nova::utilities')
+      it 'does not install utilities' do
+        is_expected.to_not contain_class('nova::utilities')
       end
 
-      it 'disables syslog' do
-        is_expected.to contain_nova_config('DEFAULT/use_syslog').with_value(false)
-      end
     end
 
     context 'with overridden parameters' do
@@ -111,12 +91,22 @@ describe 'nova' do
           :auth_strategy                      => 'foo',
           :ensure_package                     => '2012.1.1-15.el6',
           :memcached_servers                  => ['memcached01:11211', 'memcached02:11211'],
-          :install_utilities                  => false,
+          :install_utilities                  => true,
           :notification_driver                => 'ceilometer.compute.nova_notifier',
           :notification_topics                => 'openstack',
           :notify_api_faults                  => true,
           :report_interval                    => '60',
-          :os_region_name                     => 'MyRegion' }
+          :os_region_name                     => 'MyRegion',
+          :use_ipv6                           => true,
+          :upgrade_level_cells                => '1.0.0',
+          :upgrade_level_cert                 => '1.0.0',
+          :upgrade_level_compute              => '1.0.0',
+          :upgrade_level_conductor            => '1.0.0',
+          :upgrade_level_console              => '1.0.0',
+          :upgrade_level_consoleauth          => '1.0.0',
+          :upgrade_level_intercell            => '1.0.0',
+          :upgrade_level_network              => '1.0.0',
+          :upgrade_level_scheduler            => '1.0.0' }
       end
 
       it 'installs packages' do
@@ -149,10 +139,19 @@ describe 'nova' do
         is_expected.to contain_nova_config('DEFAULT/memcached_servers').with_value('memcached01:11211,memcached02:11211')
       end
 
+      it 'configures upgrade_levels' do
+        is_expected.to contain_nova_config('upgrade_levels/cells').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/cert').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/compute').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/conductor').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/console').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/consoleauth').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/intercell').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/network').with_value('1.0.0')
+        is_expected.to contain_nova_config('upgrade_levels/scheduler').with_value('1.0.0')
+      end
+
       it 'configures various things' do
-        is_expected.to contain_nova_config('DEFAULT/verbose').with_value(true)
-        is_expected.to contain_nova_config('DEFAULT/debug').with_value(true)
-        is_expected.to contain_nova_config('DEFAULT/log_dir').with_value('/var/log/nova2')
         is_expected.to contain_nova_config('DEFAULT/state_path').with_value('/var/lib/nova2')
         is_expected.to contain_nova_config('DEFAULT/lock_path').with_value('/var/locky/path')
         is_expected.to contain_nova_config('DEFAULT/service_down_time').with_value('120')
@@ -160,6 +159,7 @@ describe 'nova' do
         is_expected.to contain_nova_config('DEFAULT/notification_topics').with_value('openstack')
         is_expected.to contain_nova_config('DEFAULT/notify_api_faults').with_value(true)
         is_expected.to contain_nova_config('DEFAULT/report_interval').with_value('60')
+        is_expected.to contain_nova_config('DEFAULT/use_ipv6').with_value('true')
         is_expected.to contain_nova_config('cinder/os_region_name').with_value('MyRegion')
         is_expected.to contain_nova_config('DEFAULT/os_region_name').with_ensure('absent')
       end
@@ -172,15 +172,10 @@ describe 'nova' do
         ) }
       end
 
-      it 'does not install utilities' do
-        is_expected.to_not contain_class('nova::utilities')
+      it 'installs utilities' do
+        is_expected.to contain_class('nova::utilities')
       end
 
-      context 'with logging directory disabled' do
-        before { params.merge!( :log_dir => false) }
-
-        it { is_expected.to contain_nova_config('DEFAULT/log_dir').with_ensure('absent') }
-      end
     end
 
     context 'with wrong notify_on_state_change parameter' do
@@ -203,29 +198,6 @@ describe 'nova' do
       end
     end
 
-    context 'with syslog enabled' do
-      let :params do
-        { :use_syslog => 'true' }
-      end
-
-      it 'configures syslog' do
-        is_expected.to contain_nova_config('DEFAULT/use_syslog').with_value(true)
-        is_expected.to contain_nova_config('DEFAULT/syslog_log_facility').with_value('LOG_USER')
-      end
-    end
-
-    context 'with syslog enabled and log_facility parameter' do
-      let :params do
-        { :use_syslog   => 'true',
-          :log_facility => 'LOG_LOCAL0' }
-      end
-
-      it 'configures syslog' do
-        is_expected.to contain_nova_config('DEFAULT/use_syslog').with_value(true)
-        is_expected.to contain_nova_config('DEFAULT/syslog_log_facility').with_value('LOG_LOCAL0')
-      end
-    end
-
     context 'with rabbit_hosts parameter' do
       let :params do
         { :rabbit_hosts => ['rabbit:5673', 'rabbit2:5674'] }
@@ -238,7 +210,7 @@ describe 'nova' do
         is_expected.to contain_nova_config('oslo_messaging_rabbit/rabbit_ha_queues').with_value(true)
         is_expected.to contain_nova_config('oslo_messaging_rabbit/rabbit_use_ssl').with_value(false)
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_reconnect_delay').with_value('1.0')
-        is_expected.to contain_nova_config('DEFAULT/amqp_durable_queues').with_value(false)
+        is_expected.to contain_nova_config('oslo_messaging_rabbit/amqp_durable_queues').with_value(false)
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_ca_certs').with_ensure('absent')
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_certfile').with_ensure('absent')
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_keyfile').with_ensure('absent')
@@ -258,7 +230,7 @@ describe 'nova' do
         is_expected.to contain_nova_config('oslo_messaging_rabbit/rabbit_ha_queues').with_value(true)
         is_expected.to contain_nova_config('oslo_messaging_rabbit/rabbit_use_ssl').with_value(false)
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_reconnect_delay').with_value('1.0')
-        is_expected.to contain_nova_config('DEFAULT/amqp_durable_queues').with_value(false)
+        is_expected.to contain_nova_config('oslo_messaging_rabbit/amqp_durable_queues').with_value(false)
       end
     end
 
@@ -305,7 +277,7 @@ describe 'nova' do
         is_expected.to contain_nova_config('oslo_messaging_rabbit/rabbit_hosts').with_value('rabbit:5673')
         is_expected.to contain_nova_config('oslo_messaging_rabbit/rabbit_ha_queues').with_value(true)
         is_expected.to contain_nova_config('oslo_messaging_rabbit/rabbit_use_ssl').with_value(false)
-        is_expected.to contain_nova_config('DEFAULT/amqp_durable_queues').with_value(true)
+        is_expected.to contain_nova_config('oslo_messaging_rabbit/amqp_durable_queues').with_value(true)
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_ca_certs').with_ensure('absent')
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_certfile').with_ensure('absent')
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_keyfile').with_ensure('absent')
@@ -363,60 +335,6 @@ describe 'nova' do
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_keyfile').with_ensure('absent')
         is_expected.to contain_nova_config('oslo_messaging_rabbit/kombu_ssl_version').with_ensure('absent')
       end
-    end
-
-    context 'with qpid rpc_backend' do
-      let :params do
-        { :rpc_backend => 'qpid' }
-      end
-
-      context 'with default parameters' do
-        it 'configures qpid' do
-          is_expected.to contain_nova_config('DEFAULT/rpc_backend').with_value('qpid')
-          is_expected.to contain_nova_config('DEFAULT/qpid_hostname').with_value('localhost')
-          is_expected.to contain_nova_config('DEFAULT/qpid_port').with_value('5672')
-          is_expected.to contain_nova_config('DEFAULT/qpid_username').with_value('guest')
-          is_expected.to contain_nova_config('DEFAULT/qpid_password').with_value('guest').with_secret(true)
-          is_expected.to contain_nova_config('DEFAULT/qpid_heartbeat').with_value('60')
-          is_expected.to contain_nova_config('DEFAULT/qpid_protocol').with_value('tcp')
-          is_expected.to contain_nova_config('DEFAULT/qpid_tcp_nodelay').with_value(true)
-        end
-      end
-
-      context 'with qpid_password parameter (without qpid_sasl_mechanisms)' do
-        before do
-          params.merge!({ :qpid_password => 'guest' })
-        end
-        it { is_expected.to contain_nova_config('DEFAULT/qpid_sasl_mechanisms').with_ensure('absent') }
-      end
-
-      context 'with qpid_password parameter (with qpid_sasl_mechanisms)' do
-        before do
-          params.merge!({
-            :qpid_password        => 'guest',
-            :qpid_sasl_mechanisms => 'A'
-          })
-        end
-        it { is_expected.to contain_nova_config('DEFAULT/qpid_sasl_mechanisms').with_value('A') }
-      end
-
-      context 'with qpid_password parameter (with array of qpid_sasl_mechanisms)' do
-        before do
-          params.merge!({
-            :qpid_password        => 'guest',
-            :qpid_sasl_mechanisms => [ 'DIGEST-MD5', 'GSSAPI', 'PLAIN' ]
-          })
-        end
-        it { is_expected.to contain_nova_config('DEFAULT/qpid_sasl_mechanisms').with_value('DIGEST-MD5 GSSAPI PLAIN') }
-      end
-    end
-
-    context 'with qpid rpc_backend with old parameter' do
-      let :params do
-        { :rpc_backend => 'nova.openstack.common.rpc.impl_qpid' }
-      end
-
-      it { is_expected.to contain_nova_config('DEFAULT/rpc_backend').with_value('nova.openstack.common.rpc.impl_qpid') }
     end
 
     context 'with rabbitmq rpc_backend with old parameter' do
@@ -546,14 +464,14 @@ describe 'nova' do
       let :params do
         {
           :use_ssl          => true,
-          :enabled_ssl_apis => ['ec2', 'osapi_compute'],
+          :enabled_ssl_apis => ['osapi_compute'],
           :cert_file        => '/path/to/cert',
           :ca_file          => '/path/to/ca',
           :key_file         => '/path/to/key',
         }
       end
 
-      it { is_expected.to contain_nova_config('DEFAULT/enabled_ssl_apis').with_value('ec2,osapi_compute') }
+      it { is_expected.to contain_nova_config('DEFAULT/enabled_ssl_apis').with_value('osapi_compute') }
       it { is_expected.to contain_nova_config('DEFAULT/ssl_ca_file').with_value('/path/to/ca') }
       it { is_expected.to contain_nova_config('DEFAULT/ssl_cert_file').with_value('/path/to/cert') }
       it { is_expected.to contain_nova_config('DEFAULT/ssl_key_file').with_value('/path/to/key') }
@@ -563,7 +481,7 @@ describe 'nova' do
       let :params do
         {
           :use_ssl          => true,
-          :enabled_ssl_apis => ['ec2'],
+          :enabled_ssl_apis => ['osapi_compute'],
           :ca_file          => '/path/to/ca',
           :key_file         => '/path/to/key',
         }
@@ -593,8 +511,10 @@ describe 'nova' do
 
   context 'on Debian platforms' do
     let :facts do
-      { :osfamily => 'Debian',
-        :operatingsystem => 'Debian' }
+      @default_facts.merge({
+        :osfamily => 'Debian',
+        :operatingsystem => 'Debian'
+      })
     end
 
     let :platform_params do
@@ -603,15 +523,14 @@ describe 'nova' do
     end
 
     it_behaves_like 'nova'
-    it 'creates the log folder with the right group for Debian' do
-      is_expected.to contain_file('/var/log/nova').with(:group => 'nova')
-    end
   end
 
   context 'on Ubuntu platforms' do
     let :facts do
-      { :osfamily => 'Debian',
-        :operatingsystem => 'Ubuntu' }
+      @default_facts.merge({
+        :osfamily => 'Debian',
+        :operatingsystem => 'Ubuntu'
+      })
     end
 
     let :platform_params do
@@ -620,14 +539,11 @@ describe 'nova' do
     end
 
     it_behaves_like 'nova'
-    it 'creates the log folder with the right group for Ubuntu' do
-      is_expected.to contain_file('/var/log/nova').with(:group => 'adm')
-    end
   end
 
   context 'on RedHat platforms' do
     let :facts do
-      { :osfamily => 'RedHat' }
+      @default_facts.merge({ :osfamily => 'RedHat' })
     end
 
     let :platform_params do
@@ -637,8 +553,5 @@ describe 'nova' do
 
     it_behaves_like 'nova'
 
-    it 'creates the log folder with the right group for RedHat' do
-      is_expected.to contain_file('/var/log/nova').with(:group => 'nova')
-    end
   end
 end

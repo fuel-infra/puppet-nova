@@ -61,13 +61,17 @@ class Puppet::Provider::Nova < Puppet::Provider::Openstack
 
   def self.get_nova_credentials
     #needed keys for authentication
-    auth_keys = ['auth_host', 'auth_port', 'auth_protocol',
-                 'admin_tenant_name', 'admin_user', 'admin_password']
+    auth_keys = ['auth_uri', 'admin_tenant_name', 'admin_user',
+                 'admin_password']
     conf = nova_conf
     if conf and conf['keystone_authtoken'] and
         auth_keys.all?{|k| !conf['keystone_authtoken'][k].nil?}
-      return Hash[ auth_keys.map \
+      creds = Hash[ auth_keys.map \
                    { |k| [k, conf['keystone_authtoken'][k].strip] } ]
+      if conf['neutron'] and conf['neutron']['region_name']
+        creds['region_name'] = conf['neutron']['region_name'].strip
+      end
+      return creds
     else
       raise(Puppet::Error, "File: #{conf_filename} does not contain all " +
             "required sections.  Nova types will not work if nova is not " +
@@ -77,7 +81,7 @@ class Puppet::Provider::Nova < Puppet::Provider::Openstack
 
   def self.get_auth_endpoint
     q = nova_credentials
-    "#{q['auth_protocol']}://#{q['auth_host']}:#{q['auth_port']}/v2.0/"
+    "#{q['auth_uri']}"
   end
 
   def self.auth_endpoint
@@ -92,6 +96,9 @@ class Puppet::Provider::Nova < Puppet::Provider::Openstack
       :OS_TENANT_NAME => q['admin_tenant_name'],
       :OS_PASSWORD    => q['admin_password']
     }
+    if q.key?('region_name')
+      authenv[:OS_REGION_NAME] = q['region_name']
+    end
     begin
       withenv authenv do
         nova(args)
