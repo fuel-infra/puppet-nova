@@ -15,7 +15,6 @@ group :development, :test do
   gem 'json',                                 :require => 'false'
   gem 'webmock',                              :require => 'false'
   gem 'r10k',                                 :require => 'false'
-  gem 'openstack',                            :require => 'false'
   gem 'netaddr',                              :require => 'false'
 end
 
