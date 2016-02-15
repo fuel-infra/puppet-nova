@@ -36,9 +36,8 @@
 #    Optional
 #
 
-# Append openstacklib/lib to load path for type
-# related bug: #1408531
-File.expand_path('../../../../openstacklib/lib', File.dirname(__FILE__)).tap { |dir| $LOAD_PATH.unshift(dir) unless $LOAD_PATH.include?(dir) }
+require 'puppet'
+
 Puppet::Type.newtype(:nova_aggregate) do
 
   @doc = "Manage creation of nova aggregations."

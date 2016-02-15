@@ -1,30 +1,8 @@
 # Run test ie with: rspec spec/unit/provider/nova_spec.rb
 
 require 'puppet/util/inifile'
-require 'puppet/provider/openstack'
-require 'puppet/provider/openstack/auth'
-require 'puppet/provider/openstack/credentials'
 
-class Puppet::Provider::Nova < Puppet::Provider::Openstack
-
-  extend Puppet::Provider::Openstack::Auth
-
-  def self.request(service, action, properties=nil)
-    begin
-      super
-    rescue Puppet::Error::OpenstackAuthInputError => error
-      nova_request(service, action, error, properties)
-    end
-  end
-
-  def self.nova_request(service, action, error, properties=nil)
-    @credentials.username = nova_credentials['admin_user']
-    @credentials.password = nova_credentials['admin_password']
-    @credentials.project_name = nova_credentials['admin_tenant_name']
-    @credentials.auth_url = auth_endpoint
-    raise error unless @credentials.set?
-    Puppet::Provider::Openstack.request(service, action, properties, @credentials)
-  end
+class Puppet::Provider::Nova < Puppet::Provider
 
   def self.conf_filename
     '/etc/nova/nova.conf'
@@ -125,12 +103,126 @@ class Puppet::Provider::Nova < Puppet::Provider::Openstack
     @nova_credentials = nil
   end
 
+  def self.str2hash(s)
+    #parse string
+    if s.include? "="
+      k, v = s.split("=", 2)
+      return {k.gsub(/'/, "") => v.gsub(/'/, "")}
+    else
+      return s.gsub(/'/, "")
+    end
+  end
+
   def self.str2list(s)
-    list = []
-    s.split(",").each do |el|
-      # take all in single quotes and then remove quotes
-      matching = el.match(/'.*?'/)
-      list.push(matching.to_s.gsub(/'/, "")) unless matching.nil?
+    #parse string
+    if s.include? ","
+      if s.include? "="
+        new = {}
+      else
+        new = []
+      end
+      s.split(",").each do |el|
+        ret = str2hash(el.strip())
+        if s.include? "="
+          new.update(ret)
+        else
+          new.push(ret)
+        end
+      end
+      return new
+    else
+      return str2hash(s.strip())
+    end
+  end
+
+  def self.cliout2list(output)
+    #don't proceed with empty output
+    if output.empty?
+      return []
+    end
+    lines = []
+    output.each_line do |line|
+      #ignore lines starting with '+'
+      if not line.match("^\\+")
+        #split line at '|' and remove useless information
+        line = line.gsub(/^\| /, "").gsub(/ \|$/, "").gsub(/[\n]+/, "")
+        line = line.split("|").map do |el|
+          el.strip().gsub(/^-$/, "")
+        end
+        #check every element for list
+        line = line.map do |el|
+          el = str2list(el)
+        end
+        lines.push(line)
+      end
+    end
+    #create a list of hashes and return the list
+    hash_list = []
+    header = lines[0]
+    lines[1..-1].each do |line|
+      hash_list.push(Hash[header.zip(line)])
+    end
+    return hash_list
+  end
+
+  def self.nova_hosts
+    return @nova_hosts if @nova_hosts
+    cmd_output = auth_nova("host-list")
+    @nova_hosts = cliout2list(cmd_output)
+    @nova_hosts
+  end
+
+  def self.nova_get_host_by_name_and_type(host_name, service_type)
+    #find the host by name and service type
+    nova_hosts.each do |entry|
+      if entry["host_name"] == host_name
+        if entry["service"] == service_type
+            return entry["host_name"]
+        end
+      end
+    end
+    #name/service combo not found
+    return nil
+  end
+
+  def self.nova_aggregate_resources_ids(force_refresh=false)
+    # return the cached list unless requested
+    if not force_refresh
+      return @nova_aggregate_resources_ids if @nova_aggregate_resources_ids
+    end
+    #produce a list of hashes with Id=>Name pairs
+    lines = []
+    #run command
+    cmd_output = auth_nova("aggregate-list")
+    #parse output
+    @nova_aggregate_resources_ids = cliout2list(cmd_output)
+    #only interessted in Id and Name
+    @nova_aggregate_resources_ids.map{ |e| e.delete("Availability Zone")}
+    @nova_aggregate_resources_ids.map{ |e| e['Id'] = e['Id'].to_i}
+    @nova_aggregate_resources_ids
+  end
+
+  def self.nova_aggregate_resources_get_name_by_id(name, force_refresh=false)
+    #find the id by the given name
+    nova_aggregate_resources_ids(force_refresh).each do |entry|
+      if entry["Name"] == name
+        return entry["Id"]
+      end
+    end
+    #name not found
+    return nil
+  end
+
+  def self.nova_aggregate_resources_attr(id)
+    #run command to get details for given Id
+    cmd_output = auth_nova("aggregate-details", id)
+    list = cliout2list(cmd_output)[0]
+    if ! list["Hosts"].is_a?(Array)
+      if list["Hosts"] == ""
+        list["Hosts"] = []
+      else
+        list["Hosts"] = [ list["Hosts"] ]
+      end
     end
     return list
   end
