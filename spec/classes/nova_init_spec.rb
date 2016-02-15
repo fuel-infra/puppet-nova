@@ -54,13 +54,18 @@ describe 'nova' do
 
       it 'configures various things' do
         is_expected.to contain_nova_config('DEFAULT/state_path').with_value('/var/lib/nova')
-        is_expected.to contain_nova_config('DEFAULT/lock_path').with_value(platform_params[:lock_path])
+        is_expected.to contain_nova_config('oslo_concurrency/lock_path').with_value(platform_params[:lock_path])
         is_expected.to contain_nova_config('DEFAULT/service_down_time').with_value('60')
         is_expected.to contain_nova_config('DEFAULT/notification_driver').with_ensure('absent')
         is_expected.to contain_nova_config('DEFAULT/rootwrap_config').with_value('/etc/nova/rootwrap.conf')
         is_expected.to contain_nova_config('DEFAULT/report_interval').with_value('10')
         is_expected.to contain_nova_config('DEFAULT/use_ipv6').with_value('<SERVICE DEFAULT>')
         is_expected.to contain_nova_config('DEFAULT/os_region_name').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_userid').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_host').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_port').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_password').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_virtual_host').with_ensure('absent')
         is_expected.to contain_nova_config('cinder/os_region_name').with_ensure('absent')
         is_expected.to contain_nova_config('cinder/catalog_info').with('value' => 'volumev2:cinderv2:publicURL')
       end
@@ -136,7 +141,7 @@ describe 'nova' do
       end
 
       it 'configures memcached_servers' do
-        is_expected.to contain_nova_config('DEFAULT/memcached_servers').with_value('memcached01:11211,memcached02:11211')
+        is_expected.to contain_nova_config('keystone_authtoken/memcached_servers').with_value('memcached01:11211,memcached02:11211')
       end
 
       it 'configures upgrade_levels' do
@@ -153,7 +158,7 @@ describe 'nova' do
 
       it 'configures various things' do
         is_expected.to contain_nova_config('DEFAULT/state_path').with_value('/var/lib/nova2')
-        is_expected.to contain_nova_config('DEFAULT/lock_path').with_value('/var/locky/path')
+        is_expected.to contain_nova_config('oslo_concurrency/lock_path').with_value('/var/locky/path')
         is_expected.to contain_nova_config('DEFAULT/service_down_time').with_value('120')
         is_expected.to contain_nova_config('DEFAULT/notification_driver').with_value('ceilometer.compute.nova_notifier')
         is_expected.to contain_nova_config('DEFAULT/notification_topics').with_value('openstack')
@@ -162,6 +167,11 @@ describe 'nova' do
         is_expected.to contain_nova_config('DEFAULT/use_ipv6').with_value('true')
         is_expected.to contain_nova_config('cinder/os_region_name').with_value('MyRegion')
         is_expected.to contain_nova_config('DEFAULT/os_region_name').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_userid').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_host').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_port').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_password').with_ensure('absent')
+        is_expected.to contain_nova_config('DEFAULT/rabbit_virtual_host').with_ensure('absent')
       end
 
       context 'with multiple notification_driver' do
@@ -472,9 +482,9 @@ describe 'nova' do
       end
 
       it { is_expected.to contain_nova_config('DEFAULT/enabled_ssl_apis').with_value('osapi_compute') }
-      it { is_expected.to contain_nova_config('DEFAULT/ssl_ca_file').with_value('/path/to/ca') }
-      it { is_expected.to contain_nova_config('DEFAULT/ssl_cert_file').with_value('/path/to/cert') }
-      it { is_expected.to contain_nova_config('DEFAULT/ssl_key_file').with_value('/path/to/key') }
+      it { is_expected.to contain_nova_config('ssl/ca_file').with_value('/path/to/ca') }
+      it { is_expected.to contain_nova_config('ssl/cert_file').with_value('/path/to/cert') }
+      it { is_expected.to contain_nova_config('ssl/key_file').with_value('/path/to/key') }
     end
 
     context 'with SSL socket options set with wrong parameters' do
@@ -502,9 +512,9 @@ describe 'nova' do
       end
 
       it { is_expected.to contain_nova_config('DEFAULT/enabled_ssl_apis').with_ensure('absent') }
-      it { is_expected.to contain_nova_config('DEFAULT/ssl_ca_file').with_ensure('absent') }
-      it { is_expected.to contain_nova_config('DEFAULT/ssl_cert_file').with_ensure('absent') }
-      it { is_expected.to contain_nova_config('DEFAULT/ssl_key_file').with_ensure('absent') }
+      it { is_expected.to contain_nova_config('ssl/ca_file').with_ensure('absent') }
+      it { is_expected.to contain_nova_config('ssl/cert_file').with_ensure('absent') }
+      it { is_expected.to contain_nova_config('ssl/key_file').with_ensure('absent') }
     end
 
   end
